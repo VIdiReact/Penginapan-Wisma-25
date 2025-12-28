@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wisma Monitor - Realtime</title>
+    <title>Room Monitor Real-time - Wisma</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
@@ -14,7 +14,7 @@
             --color-terisi: #f44336;
             --color-ac-mati: #ff9800;
             --color-kotor: #e91e63;
-            --color-belum-ready: #ffeb3b;
+            --color-maintenance: #ffeb3b;
         }
 
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); margin: 0; padding: 0; }
@@ -28,7 +28,6 @@
         .header-left { display: flex; align-items: center; gap: 12px; }
         .header-logo { width: 35px; height: 35px; border-radius: 8px; }
         header h1 { font-size: 1.4rem; margin: 0; color: #333; }
-        .header-right p { margin: 0; font-size: 0.85rem; color: #666; font-weight: 500; }
 
         .main-content { padding: 25px; }
         .container {
@@ -42,11 +41,10 @@
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
-        .room-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
+        .room-card:hover { transform: scale(1.05); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
         .room-number { font-size: 2.5rem; font-weight: 800; color: #2c3e50; }
         .room-status { margin-top: 10px; font-weight: 700; padding: 6px 12px; border-radius: 10px; font-size: 0.8rem; display: inline-block; text-transform: uppercase; }
 
-        /* Warna Status */
         .status-kosong { border-color: var(--color-kosong); }
         .status-kosong .room-status { background: var(--color-kosong); color: white; }
         .status-terisi { border-color: var(--color-terisi); }
@@ -55,10 +53,10 @@
         .status-ac .room-status { background: var(--color-ac-mati); color: white; }
         .status-kotor { border-color: var(--color-kotor); }
         .status-kotor .room-status { background: var(--color-kotor); color: white; }
-        .status-ready { border-color: var(--color-belum-ready); }
-        .status-ready .room-status { background: var(--color-belum-ready); color: #333; }
+        .status-maintenance { border-color: var(--color-maintenance); }
+        .status-maintenance .room-status { background: var(--color-maintenance); color: #333; }
 
-        /* Modal Pop-up */
+        /* Modal */
         .modal {
             display: none; position: fixed; z-index: 1000; left: 0; top: 0;
             width: 100%; height: 100%; background: rgba(0,0,0,0.6);
@@ -67,17 +65,15 @@
         .modal-content {
             background: white; padding: 30px; border-radius: 25px;
             width: 90%; max-width: 350px; text-align: center;
-            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        @keyframes pop { from { transform: scale(0.8); } to { transform: scale(1); } }
-        
         .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        
+        /* Efek Membesar pada Tombol Status */
         .status-btn { 
             padding: 15px; border: none; border-radius: 12px; 
             color: white; font-weight: bold; cursor: pointer; transition: 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .status-btn:hover { transform: scale(1.06); filter: brightness(1.1); }
+        .status-btn:hover { transform: scale(1.08); filter: brightness(1.1); }
         .close-btn { margin-top: 15px; background: #eee; border: none; padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; color: #666; font-weight: 600; }
     </style>
 </head>
@@ -85,10 +81,9 @@
 
 <header>
     <div class="header-left">
-        <img src="https://placehold.co/100x100/4CAF50/ffffff?text=W&font=roboto" class="header-logo">
+        <img src="https://placehold.co/100x100/4CAF50/ffffff?text=W" class="header-logo">
         <h1>Room Monitor</h1>
     </div>
-    <div class="header-right"><p>Sinkronisasi Real-time Aktif</p></div>
 </header>
 
 <div class="main-content">
@@ -103,7 +98,7 @@
             <button class="status-btn" style="background: var(--color-terisi)" onclick="updateStatus('Terisi')">Terisi</button>
             <button class="status-btn" style="background: var(--color-ac-mati)" onclick="updateStatus('AC belum mati')">AC belum mati</button>
             <button class="status-btn" style="background: var(--color-kotor)" onclick="updateStatus('Kotor')">Kotor</button>
-            <button class="status-btn" style="background: var(--color-belum-ready); color: #333" onclick="updateStatus('Belum Ready')">Belum Ready</button>
+            <button class="status-btn" style="background: var(--color-maintenance); color: #333" onclick="updateStatus('Maintenance')">Maintenance</button>
         </div>
         <button class="close-btn" onclick="closeModal()">Batal</button>
     </div>
@@ -128,13 +123,18 @@
 
     let currentRoomId = null;
 
-    // Pantau Data Secara Real-time
+    // FUNGSI PENGURUTAN YANG DIPERBAIKI
     roomsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) {
             initDefaultRooms();
         } else {
-            render(data);
+            // Kita ambil kuncinya (01, 02, dst), lalu kita urutkan secara numerik
+            const sortedKeys = Object.keys(data).sort((a, b) => {
+                return parseInt(a) - parseInt(b);
+            });
+            
+            render(data, sortedKeys);
         }
     });
 
@@ -147,10 +147,12 @@
         roomsRef.set(initial);
     }
 
-    function render(data) {
+    function render(data, sortedKeys) {
         const container = document.getElementById('roomContainer');
         container.innerHTML = '';
-        Object.keys(data).forEach(id => {
+        
+        // Gunakan sortedKeys untuk menampilkan data secara berurutan
+        sortedKeys.forEach(id => {
             const room = data[id];
             const card = document.createElement('div');
             card.className = `room-card ${getStatusClass(room.status)}`;
@@ -168,7 +170,13 @@
     }
 
     function getStatusClass(s) {
-        const map = { 'Kosong': 'status-kosong', 'Terisi': 'status-terisi', 'AC belum mati': 'status-ac', 'Kotor': 'status-kotor', 'Belum Ready': 'status-ready' };
+        const map = { 
+            'Kosong': 'status-kosong', 
+            'Terisi': 'status-terisi', 
+            'AC belum mati': 'status-ac', 
+            'Kotor': 'status-kotor', 
+            'Maintenance': 'status-maintenance' 
+        };
         return map[s] || '';
     }
 
