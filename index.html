@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room Monitor Real-time - Wisma</title>
+    <title>Room Monitor - Wisma dengan Catatan</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
@@ -36,15 +36,29 @@
         }
 
         .room-card {
-            background: white; border-radius: 16px; padding: 25px;
+            background: white; border-radius: 16px; padding: 20px;
             text-align: center; cursor: pointer; border: 3px solid transparent;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; justify-content: space-between;
+            min-height: 180px;
         }
-        .room-card:hover { transform: scale(1.05); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
-        .room-number { font-size: 2.5rem; font-weight: 800; color: #2c3e50; }
-        .room-status { margin-top: 10px; font-weight: 700; padding: 6px 12px; border-radius: 10px; font-size: 0.8rem; display: inline-block; text-transform: uppercase; }
+        .room-card:hover { transform: scale(1.03); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
+        .room-number { font-size: 2.2rem; font-weight: 800; color: #2c3e50; margin: 0; }
+        .room-status { margin-top: 8px; font-weight: 700; padding: 5px 10px; border-radius: 8px; font-size: 0.75rem; display: inline-block; text-transform: uppercase; }
 
+        /* Footnote Style */
+        .room-note {
+            margin-top: 12px;
+            font-size: 0.8rem;
+            color: #666;
+            font-style: italic;
+            border-top: 1px dashed #ddd;
+            padding-top: 8px;
+            word-wrap: break-word;
+        }
+
+        /* Status Colors */
         .status-kosong { border-color: var(--color-kosong); }
         .status-kosong .room-status { background: var(--color-kosong); color: white; }
         .status-terisi { border-color: var(--color-terisi); }
@@ -63,18 +77,23 @@
             justify-content: center; align-items: center; backdrop-filter: blur(5px);
         }
         .modal-content {
-            background: white; padding: 30px; border-radius: 25px;
+            background: white; padding: 25px; border-radius: 25px;
             width: 90%; max-width: 350px; text-align: center;
         }
-        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         
-        /* Efek Membesar pada Tombol Status */
-        .status-btn { 
-            padding: 15px; border: none; border-radius: 12px; 
-            color: white; font-weight: bold; cursor: pointer; transition: 0.2s;
+        .note-input-area { margin: 15px 0; text-align: left; }
+        .note-input-area label { font-size: 0.85rem; font-weight: bold; color: #555; }
+        #roomNoteInput {
+            width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;
+            margin-top: 5px; box-sizing: border-box; font-family: inherit;
         }
-        .status-btn:hover { transform: scale(1.08); filter: brightness(1.1); }
-        .close-btn { margin-top: 15px; background: #eee; border: none; padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; color: #666; font-weight: 600; }
+
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .status-btn { padding: 12px; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        .btn-full { grid-column: span 2; }
+        
+        .save-btn { margin-top: 15px; background: #2c3e50; color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; font-weight: bold; }
+        .close-btn { margin-top: 8px; background: #eee; border: none; padding: 10px; width: 100%; border-radius: 12px; cursor: pointer; color: #666; }
     </style>
 </head>
 <body>
@@ -82,7 +101,7 @@
 <header>
     <div class="header-left">
         <img src="https://placehold.co/100x100/4CAF50/ffffff?text=W" class="header-logo">
-        <h1>Room Monitor</h1>
+        <h1>Wisma Monitor</h1>
     </div>
 </header>
 
@@ -92,14 +111,23 @@
 
 <div class="modal" id="statusModal">
     <div class="modal-content">
-        <h3 id="modalTitle">Pilih Status</h3>
-        <div class="btn-group">
-            <button class="status-btn" style="background: var(--color-kosong)" onclick="updateStatus('Kosong')">Kosong</button>
-            <button class="status-btn" style="background: var(--color-terisi)" onclick="updateStatus('Terisi')">Terisi</button>
-            <button class="status-btn" style="background: var(--color-ac-mati)" onclick="updateStatus('AC belum mati')">AC belum mati</button>
-            <button class="status-btn" style="background: var(--color-kotor)" onclick="updateStatus('Kotor')">Kotor</button>
-            <button class="status-btn" style="background: var(--color-maintenance); color: #333" onclick="updateStatus('Maintenance')">Maintenance</button>
+        <h3 id="modalTitle" style="margin-top:0">Kamar</h3>
+        
+        <div class="note-input-area">
+            <label for="roomNoteInput">Catatan / Footnote:</label>
+            <textarea id="roomNoteInput" rows="2" placeholder="Contoh: AC bocor, Tamu check-out jam 12..."></textarea>
         </div>
+
+        <p style="font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; text-align: left;">Pilih Status:</p>
+        <div class="btn-group">
+            <button class="status-btn" style="background: var(--color-kosong)" onclick="tempStatus='Kosong'">Kosong</button>
+            <button class="status-btn" style="background: var(--color-terisi)" onclick="tempStatus='Terisi'">Terisi</button>
+            <button class="status-btn" style="background: var(--color-ac-mati)" onclick="tempStatus='AC belum mati'">AC Mati?</button>
+            <button class="status-btn" style="background: var(--color-kotor)" onclick="tempStatus='Kotor'">Kotor</button>
+            <button class="status-btn btn-full" style="background: var(--color-maintenance); color: #333" onclick="tempStatus='Maintenance'">Maintenance</button>
+        </div>
+
+        <button class="save-btn" onclick="saveChanges()">SIMPAN PERUBAHAN</button>
         <button class="close-btn" onclick="closeModal()">Batal</button>
     </div>
 </div>
@@ -122,18 +150,16 @@
     const roomsRef = db.ref('rooms');
 
     let currentRoomId = null;
+    let tempStatus = ""; 
+    let currentData = {};
 
-    // FUNGSI PENGURUTAN YANG DIPERBAIKI
     roomsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) {
             initDefaultRooms();
         } else {
-            // Kita ambil kuncinya (01, 02, dst), lalu kita urutkan secara numerik
-            const sortedKeys = Object.keys(data).sort((a, b) => {
-                return parseInt(a) - parseInt(b);
-            });
-            
+            currentData = data;
+            const sortedKeys = Object.keys(data).sort((a, b) => parseInt(a) - parseInt(b));
             render(data, sortedKeys);
         }
     });
@@ -142,7 +168,7 @@
         let initial = {};
         for (let i = 1; i <= 24; i++) {
             let num = i.toString().padStart(2, '0');
-            initial[num] = { number: num, status: 'Kosong' };
+            initial[num] = { number: num, status: 'Kosong', note: '' };
         }
         roomsRef.set(initial);
     }
@@ -151,43 +177,51 @@
         const container = document.getElementById('roomContainer');
         container.innerHTML = '';
         
-        // Gunakan sortedKeys untuk menampilkan data secara berurutan
         sortedKeys.forEach(id => {
             const room = data[id];
             const card = document.createElement('div');
             card.className = `room-card ${getStatusClass(room.status)}`;
             card.onclick = () => openModal(id);
-            card.innerHTML = `<div class="room-number">${room.number}</div><div class="room-status">${room.status}</div>`;
+            
+            // Tampilkan catatan jika ada
+            const noteHtml = room.note ? `<div class="room-note">${room.note}</div>` : '';
+            
+            card.innerHTML = `
+                <div>
+                    <div class="room-number">${room.number}</div>
+                    <div class="room-status">${room.status}</div>
+                </div>
+                ${noteHtml}
+            `;
             container.appendChild(card);
         });
     }
 
-    function updateStatus(newStatus) {
+    function openModal(id) {
+        currentRoomId = id;
+        tempStatus = currentData[id].status; // Default ke status saat ini
+        document.getElementById('modalTitle').innerText = `Kamar ${id}`;
+        document.getElementById('roomNoteInput').value = currentData[id].note || "";
+        document.getElementById('statusModal').style.display = 'flex';
+    }
+
+    function saveChanges() {
+        const newNote = document.getElementById('roomNoteInput').value;
         if (currentRoomId) {
-            db.ref('rooms/' + currentRoomId).update({ status: newStatus });
+            db.ref('rooms/' + currentRoomId).update({
+                status: tempStatus,
+                note: newNote
+            });
             closeModal();
         }
     }
 
     function getStatusClass(s) {
-        const map = { 
-            'Kosong': 'status-kosong', 
-            'Terisi': 'status-terisi', 
-            'AC belum mati': 'status-ac', 
-            'Kotor': 'status-kotor', 
-            'Maintenance': 'status-maintenance' 
-        };
+        const map = { 'Kosong': 'status-kosong', 'Terisi': 'status-terisi', 'AC belum mati': 'status-ac', 'Kotor': 'status-kotor', 'Maintenance': 'status-maintenance' };
         return map[s] || '';
     }
 
-    function openModal(id) {
-        currentRoomId = id;
-        document.getElementById('modalTitle').innerText = `Kamar ${id}`;
-        document.getElementById('statusModal').style.display = 'flex';
-    }
-
     function closeModal() { document.getElementById('statusModal').style.display = 'none'; }
-    window.onclick = (e) => { if (e.target.className === 'modal') closeModal(); }
 </script>
 </body>
 </html>
