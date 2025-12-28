@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wisma Monitor - Realtime</title>
+    <style>
+        :root {
+            --bg-body: #f4f7f6;
+            --color-kosong: #4CAF50;
+            --color-terisi: #f44336;
+            --color-ac-mati: #ff9800;
+            --color-kotor: #e91e63;
+            --color-belum-ready: #ffeb3b;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); margin: 0; padding: 0; }
+
+        /* Header Sticky */
+        header {
+            position: sticky; top: 0; z-index: 100; background: white;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .header-logo { width: 35px; height: 35px; border-radius: 6px; }
+        header h1 { font-size: 1.3rem; margin: 0; color: #333; }
+        .header-right p { margin: 0; font-size: 0.85rem; color: #777; font-weight: 500; }
+
+        /* Container */
+        .main-content { padding: 20px; }
+        .container {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px; max-width: 1200px; margin: 0 auto;
+        }
+
+        /* Card Kamar */
+        .room-card {
+            background: white; border-radius: 12px; padding: 20px;
+            text-align: center; cursor: pointer; border: 3px solid transparent;
+            transition: 0.3s; box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+        }
+        .room-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
+        .room-number { font-size: 2.2rem; font-weight: 800; color: #222; }
+        .room-status { 
+            margin-top: 10px; font-weight: 700; padding: 5px 8px; 
+            border-radius: 6px; font-size: 0.75rem; display: inline-block;
+        }
+
+        /* Warna Status */
+        .status-kosong { border-color: var(--color-kosong); }
+        .status-kosong .room-status { background: var(--color-kosong); color: white; }
+        .status-terisi { border-color: var(--color-terisi); }
+        .status-terisi .room-status { background: var(--color-terisi); color: white; }
+        .status-ac { border-color: var(--color-ac-mati); }
+        .status-ac .room-status { background: var(--color-ac-mati); color: white; }
+        .status-kotor { border-color: var(--color-kotor); }
+        .status-kotor .room-status { background: var(--color-kotor); color: white; }
+        .status-ready { border-color: var(--color-belum-ready); }
+        .status-ready .room-status { background: var(--color-belum-ready); color: #333; }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            justify-content: center; align-items: center; backdrop-filter: blur(4px);
+        }
+        .modal-content {
+            background: white; padding: 25px; border-radius: 20px;
+            width: 85%; max-width: 320px; text-align: center;
+        }
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .status-btn { 
+            padding: 14px; border: none; border-radius: 10px; 
+            color: white; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .status-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .close-btn { margin-top: 15px; background: #eee; border: none; padding: 10px; width: 100%; border-radius: 10px; cursor: pointer; color: #666; }
+
+        /* Sync Indicator */
+        #syncStatus { font-size: 11px; color: #999; text-align: center; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <img src="https://placehold.co/40x40/4CAF50/ffffff?text=W" class="header-logo">
+        <h1>Room Monitor</h1>
+    </div>
+    <div class="header-right"><p>Kelola hunian secara real-time</p></div>
+</header>
+
+<div class="main-content">
+    <div id="syncStatus">Menghubungkan ke jaringan...</div>
+    <div class="container" id="roomContainer"></div>
+</div>
+
+<div class="modal" id="statusModal">
+    <div class="modal-content">
+        <h3 id="modalTitle">Kamar</h3>
+        <div class="btn-group">
+            <button class="status-btn" style="background: var(--color-kosong)" onclick="updateStatus('Kosong')">Kosong</button>
+            <button class="status-btn" style="background: var(--color-terisi)" onclick="updateStatus('Terisi')">Terisi</button>
+            <button class="status-btn" style="background: var(--color-ac-mati)" onclick="updateStatus('AC belum mati')">AC belum mati</button>
+            <button class="status-btn" style="background: var(--color-kotor)" onclick="updateStatus('Kotor')">Kotor</button>
+            <button class="status-btn" style="background: var(--color-belum-ready); color: #333" onclick="updateStatus('Belum Ready')">Belum Ready</button>
+        </div>
+        <button class="close-btn" onclick="closeModal()">Batal</button>
+    </div>
+</div>
+
+<script>
+    // --- PENGATURAN JEMBATAN DATA ---
+    // ID ini unik untuk Wisma Anda. Jangan berikan ke orang lain.
+    const BLOB_ID = "1322119932132104192"; 
+    const API_URL = "https://jsonblob.com/api/jsonBlob/" + BLOB_ID;
+
+    let rooms = [];
+    let currentRoomId = null;
+
+    // 1. Ambil Data dari Jembatan (Cloud)
+    async function fetchData() {
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            rooms = data;
+            renderRooms();
+            document.getElementById('syncStatus').innerText = "Terhubung - Sinkronisasi Otomatis Aktif";
+        } catch (error) {
+            console.log("Inisialisasi data baru...");
+            initData();
+        }
+    }
+
+    // 2. Buat Data Pertama Kali
+    function initData() {
+        rooms = [];
+        for (let i = 1; i <= 24; i++) {
+            rooms.push({ id: i, number: i.toString().padStart(2, '0'), status: 'Kosong' });
+        }
+        pushData();
+    }
+
+    // 3. Kirim Perubahan ke Jembatan (Cloud)
+    async function pushData() {
+        document.getElementById('syncStatus').innerText = "Menyimpan perubahan...";
+        try {
+            await fetch(API_URL, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rooms)
+            });
+            document.getElementById('syncStatus').innerText = "Tersimpan";
+            renderRooms();
+        } catch (error) {
+            alert("Gagal sinkronisasi. Cek koneksi internet.");
+        }
+    }
+
+    function renderRooms() {
+        const container = document.getElementById('roomContainer');
+        container.innerHTML = '';
+        rooms.forEach((room, index) => {
+            const card = document.createElement('div');
+            card.className = `room-card ${getStatusClass(room.status)}`;
+            card.onclick = () => openModal(index);
+            card.innerHTML = `<div class="room-number">${room.number}</div><div class="room-status">${room.status}</div>`;
+            container.appendChild(card);
+        });
+    }
+
+    function updateStatus(newStatus) {
+        rooms[currentRoomId].status = newStatus;
+        pushData();
+        closeModal();
+    }
+
+    // --- FUNGSI PENDUKUNG ---
+    function getStatusClass(s) {
+        const map = { 'Kosong': 'status-kosong', 'Terisi': 'status-terisi', 'AC belum mati': 'status-ac', 'Kotor': 'status-kotor', 'Belum Ready': 'status-ready' };
+        return map[s] || '';
+    }
+
+    function openModal(index) {
+        currentRoomId = index;
+        document.getElementById('modalTitle').innerText = `Update Kamar ${rooms[index].number}`;
+        document.getElementById('statusModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('statusModal').style.display = 'none'; }
+    window.onclick = (e) => { if (e.target.className === 'modal') closeModal(); }
+
+    // Jalankan Sinkronisasi setiap 5 detik agar HP & PC selalu sama
+    fetchData();
+    setInterval(fetchData, 5000); 
+
+</script>
+</body>
+</html>
