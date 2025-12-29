@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room Monitor - Wisma dengan Catatan</title>
+    <title>Wisma Monitor - Secure Login</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     
@@ -15,48 +15,52 @@
             --color-ac-mati: #ff9800;
             --color-kotor: #e91e63;
             --color-maintenance: #ffeb3b;
+            --primary: #2c3e50;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); margin: 0; }
 
+        /* --- LOGIN PAGE --- */
+        #loginPage {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; background: var(--primary); color: white;
+        }
+        .login-card { background: white; padding: 30px; border-radius: 20px; color: #333; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-btn { 
+            display: block; width: 100%; padding: 15px; margin: 10px 0; 
+            border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1rem;
+        }
+        .btn-res { background: #3498db; color: white; }
+        .btn-kar { background: #95a5a6; color: white; }
+        
+        #passContainer { display: none; margin-top: 10px; animation: fadeIn 0.3s; }
+        #passInput { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; text-align: center; font-size: 1rem; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- DASHBOARD --- */
+        #mainPage { display: none; }
         header {
             position: sticky; top: 0; z-index: 100; background: white;
             display: flex; justify-content: space-between; align-items: center;
-            padding: 12px 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        .user-tag { font-size: 0.8rem; background: #eee; padding: 4px 12px; border-radius: 15px; font-weight: bold; color: var(--primary); }
 
-        .header-left { display: flex; align-items: center; gap: 12px; }
-        .header-logo { width: 35px; height: 35px; border-radius: 8px; }
-        header h1 { font-size: 1.4rem; margin: 0; color: #333; }
-
-        .main-content { padding: 25px; }
         .container {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-            gap: 20px; max-width: 1400px; margin: 0 auto;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 15px; padding: 20px; max-width: 1200px; margin: 0 auto;
         }
 
         .room-card {
-            background: white; border-radius: 16px; padding: 20px;
+            background: white; border-radius: 15px; padding: 15px;
             text-align: center; cursor: pointer; border: 3px solid transparent;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; justify-content: space-between;
-            min-height: 180px;
+            transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; min-height: 180px;
         }
-        .room-card:hover { transform: scale(1.03); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
-        .room-number { font-size: 2.2rem; font-weight: 800; color: #2c3e50; margin: 0; }
-        .room-status { margin-top: 8px; font-weight: 700; padding: 5px 10px; border-radius: 8px; font-size: 0.75rem; display: inline-block; text-transform: uppercase; }
-
-        /* Footnote Style */
-        .room-note {
-            margin-top: 12px;
-            font-size: 0.8rem;
-            color: #666;
-            font-style: italic;
-            border-top: 1px dashed #ddd;
-            padding-top: 8px;
-            word-wrap: break-word;
-        }
+        .room-number { font-size: 2.2rem; font-weight: 800; color: #2c3e50; }
+        .room-status { margin: 5px 0; font-weight: 700; padding: 5px; border-radius: 6px; font-size: 0.7rem; text-transform: uppercase; }
+        .room-note { font-size: 0.75rem; color: #666; font-style: italic; flex-grow: 1; margin: 8px 0; border-top: 1px solid #f0f0f0; padding-top: 8px; }
+        .room-time { font-size: 0.65rem; color: #bbb; font-weight: bold; }
 
         /* Status Colors */
         .status-kosong { border-color: var(--color-kosong); }
@@ -71,64 +75,55 @@
         .status-maintenance .room-status { background: var(--color-maintenance); color: #333; }
 
         /* Modal */
-        .modal {
-            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.6);
-            justify-content: center; align-items: center; backdrop-filter: blur(5px);
-        }
-        .modal-content {
-            background: white; padding: 25px; border-radius: 25px;
-            width: 90%; max-width: 350px; text-align: center;
-        }
-        
-        .note-input-area { margin: 15px 0; text-align: left; }
-        .note-input-area label { font-size: 0.85rem; font-weight: bold; color: #555; }
-        #roomNoteInput {
-            width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;
-            margin-top: 5px; box-sizing: border-box; font-family: inherit;
-        }
-
-        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .status-btn { padding: 12px; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
-        .btn-full { grid-column: span 2; }
-        
-        .save-btn { margin-top: 15px; background: #2c3e50; color: white; border: none; padding: 12px; width: 100%; border-radius: 12px; cursor: pointer; font-weight: bold; }
-        .close-btn { margin-top: 8px; background: #eee; border: none; padding: 10px; width: 100%; border-radius: 12px; cursor: pointer; color: #666; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center; }
+        textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; margin: 10px 0; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .status-btn { padding: 10px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-<header>
-    <div class="header-left">
-        <img src="https://placehold.co/100x100/4CAF50/ffffff?text=W" class="header-logo">
-        <h1>Wisma Monitor</h1>
+<div id="loginPage">
+    <div class="login-card">
+        <h2 style="margin-top:0">Wisma Monitor</h2>
+        <div id="roleSelection">
+            <button class="login-btn btn-res" onclick="showPasswordInput()">Login Resepsionis</button>
+            <button class="login-btn btn-kar" onclick="login('Karyawan 1')">Login Karyawan 1</button>
+            <button class="login-btn btn-kar" onclick="login('Karyawan 2')">Login Karyawan 2</button>
+        </div>
+        
+        <div id="passContainer">
+            <p>Masukkan Password Resepsionis:</p>
+            <input type="password" id="passInput" placeholder="••••••">
+            <button class="login-btn btn-res" onclick="checkPassword()">Masuk</button>
+            <button style="background:none; border:none; color:#888; cursor:pointer;" onclick="hidePasswordInput()">Kembali</button>
+        </div>
     </div>
-</header>
+</div>
 
-<div class="main-content">
+<div id="mainPage">
+    <header>
+        <div class="header-left"><b>WISMA APP</b></div>
+        <div class="user-tag" id="userTagDisplay">User</div>
+        <button onclick="location.reload()" style="background:none; border:none; color:red; font-weight:bold; cursor:pointer;">Logout</button>
+    </header>
     <div class="container" id="roomContainer"></div>
 </div>
 
 <div class="modal" id="statusModal">
     <div class="modal-content">
-        <h3 id="modalTitle" style="margin-top:0">Kamar</h3>
-        
-        <div class="note-input-area">
-            <label for="roomNoteInput">Catatan / Footnote:</label>
-            <textarea id="roomNoteInput" rows="2" placeholder="Contoh: AC bocor, Tamu check-out jam 12..."></textarea>
-        </div>
-
-        <p style="font-size: 0.85rem; font-weight: bold; color: #555; margin-bottom: 5px; text-align: left;">Pilih Status:</p>
+        <h3 id="modalTitle" style="margin-top:0">Update Kamar</h3>
+        <textarea id="roomNoteInput" rows="2" placeholder="Catatan kamar..."></textarea>
         <div class="btn-group">
             <button class="status-btn" style="background: var(--color-kosong)" onclick="tempStatus='Kosong'">Kosong</button>
             <button class="status-btn" style="background: var(--color-terisi)" onclick="tempStatus='Terisi'">Terisi</button>
             <button class="status-btn" style="background: var(--color-ac-mati)" onclick="tempStatus='AC belum mati'">AC Mati?</button>
             <button class="status-btn" style="background: var(--color-kotor)" onclick="tempStatus='Kotor'">Kotor</button>
-            <button class="status-btn btn-full" style="background: var(--color-maintenance); color: #333" onclick="tempStatus='Maintenance'">Maintenance</button>
+            <button class="status-btn" style="background: var(--color-maintenance); color: #333; grid-column: span 2;" onclick="tempStatus='Maintenance'">Maintenance</button>
         </div>
-
-        <button class="save-btn" onclick="saveChanges()">SIMPAN PERUBAHAN</button>
-        <button class="close-btn" onclick="closeModal()">Batal</button>
+        <button onclick="saveChanges()" style="margin-top:15px; width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">SIMPAN</button>
+        <button onclick="closeModal()" style="margin-top:10px; background:none; border:none; color:#888; cursor:pointer;">Batal</button>
     </div>
 </div>
 
@@ -145,75 +140,106 @@
 		measurementId: "G-VQ7BG2RBPT"
     };
 
+    // --- PENGATURAN PASSWORD ---
+    const ADMIN_PASSWORD = "877887"; // Ganti password Anda di sini
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const roomsRef = db.ref('rooms');
 
+    let currentUser = "";
     let currentRoomId = null;
-    let tempStatus = ""; 
-    let currentData = {};
+    let tempStatus = "";
+    let fullData = {};
 
-    roomsRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) {
-            initDefaultRooms();
+    // --- LOGIKA LOGIN ---
+    function showPasswordInput() {
+        document.getElementById('roleSelection').style.display = 'none';
+        document.getElementById('passContainer').style.display = 'block';
+    }
+
+    function hidePasswordInput() {
+        document.getElementById('roleSelection').style.display = 'block';
+        document.getElementById('passContainer').style.display = 'none';
+    }
+
+    function checkPassword() {
+        const input = document.getElementById('passInput').value;
+        if (input === ADMIN_PASSWORD) {
+            login('Resepsionis');
         } else {
-            currentData = data;
-            const sortedKeys = Object.keys(data).sort((a, b) => parseInt(a) - parseInt(b));
-            render(data, sortedKeys);
+            alert("Password Salah!");
         }
-    });
+    }
+
+    function login(role) {
+        currentUser = role;
+        document.getElementById('userTagDisplay').innerText = role;
+        document.getElementById('loginPage').style.display = 'none';
+        document.getElementById('mainPage').style.display = 'block';
+        startSync();
+    }
+
+    // --- LOGIKA DATA ---
+    function startSync() {
+        roomsRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) initDefaultRooms();
+            else {
+                fullData = data;
+                render(data);
+            }
+        });
+    }
 
     function initDefaultRooms() {
         let initial = {};
         for (let i = 1; i <= 24; i++) {
             let num = i.toString().padStart(2, '0');
-            initial[num] = { number: num, status: 'Kosong', note: '' };
+            initial[num] = { number: num, status: 'Kosong', note: '', lastUpdate: '--:--' };
         }
         roomsRef.set(initial);
     }
 
-    function render(data, sortedKeys) {
+    function render(data) {
         const container = document.getElementById('roomContainer');
         container.innerHTML = '';
-        
-        sortedKeys.forEach(id => {
+        Object.keys(data).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(id => {
             const room = data[id];
             const card = document.createElement('div');
             card.className = `room-card ${getStatusClass(room.status)}`;
             card.onclick = () => openModal(id);
-            
-            // Tampilkan catatan jika ada
-            const noteHtml = room.note ? `<div class="room-note">${room.note}</div>` : '';
-            
             card.innerHTML = `
-                <div>
-                    <div class="room-number">${room.number}</div>
-                    <div class="room-status">${room.status}</div>
-                </div>
-                ${noteHtml}
+                <div class="room-number">${room.number}</div>
+                <div class="room-status">${room.status}</div>
+                <div class="room-note">${room.note || ''}</div>
+                <div class="room-time">Update: ${room.lastUpdate || '--:--'}</div>
             `;
             container.appendChild(card);
         });
     }
 
     function openModal(id) {
+        // Hanya Resepsionis yang bisa edit
+        if (currentUser !== 'Resepsionis') {
+            alert("Akses Terbatas: Hanya Resepsionis yang dapat merubah status.");
+            return;
+        }
         currentRoomId = id;
-        tempStatus = currentData[id].status; // Default ke status saat ini
+        tempStatus = fullData[id].status;
         document.getElementById('modalTitle').innerText = `Kamar ${id}`;
-        document.getElementById('roomNoteInput').value = currentData[id].note || "";
+        document.getElementById('roomNoteInput').value = fullData[id].note || "";
         document.getElementById('statusModal').style.display = 'flex';
     }
 
     function saveChanges() {
-        const newNote = document.getElementById('roomNoteInput').value;
-        if (currentRoomId) {
-            db.ref('rooms/' + currentRoomId).update({
-                status: tempStatus,
-                note: newNote
-            });
-            closeModal();
-        }
+        const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        db.ref('rooms/' + currentRoomId).update({
+            status: tempStatus,
+            note: document.getElementById('roomNoteInput').value,
+            lastUpdate: timeNow
+        });
+        closeModal();
     }
 
     function getStatusClass(s) {
