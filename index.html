@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wisma Monitor - Secure Login</title>
+    <title>Wisma Monitor - Pro Report Blue</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         :root {
             --bg-body: #f4f7f6;
-            --color-kosong: #4CAF50;
-            --color-terisi: #f44336;
-            --color-ac-mati: #ff9800;
-            --color-kotor: #e91e63;
-            --color-maintenance: #ffeb3b;
+            --color-kosong: #4CAF50;    /* Hijau */
+            --color-terisi: #f44336;    /* Merah */
+            --color-ac-mati: #ff9800;   /* Oranye */
+            --color-kotor: #2196F3;     /* BIRU (DIUBAH) */
+            --color-maintenance: #ffeb3b; /* Kuning */
             --primary: #2c3e50;
         }
 
@@ -25,17 +27,12 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; background: var(--primary); color: white;
         }
-        .login-card { background: white; padding: 30px; border-radius: 20px; color: #333; text-align: center; width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .login-btn { 
-            display: block; width: 100%; padding: 15px; margin: 10px 0; 
-            border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1rem;
-        }
+        .login-card { background: white; padding: 30px; border-radius: 20px; color: #333; text-align: center; width: 90%; max-width: 350px; }
+        .login-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
         .btn-res { background: #3498db; color: white; }
         .btn-kar { background: #95a5a6; color: white; }
-        
-        #passContainer { display: none; margin-top: 10px; animation: fadeIn 0.3s; }
-        #passInput { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; text-align: center; font-size: 1rem; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        #passContainer { display: none; margin-top: 10px; }
+        #passInput { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; text-align: center; margin-bottom: 10px; }
 
         /* --- DASHBOARD --- */
         #mainPage { display: none; }
@@ -44,7 +41,8 @@
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .user-tag { font-size: 0.8rem; background: #eee; padding: 4px 12px; border-radius: 15px; font-weight: bold; color: var(--primary); }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .report-btn { background: #8e44ad; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; }
 
         .container {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -52,32 +50,27 @@
         }
 
         .room-card {
-            background: white; border-radius: 15px; padding: 15px;
-            text-align: center; cursor: pointer; border: 3px solid transparent;
-            transition: 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            display: flex; flex-direction: column; min-height: 180px;
+            background: white; border-radius: 15px; padding: 15px; text-align: center; cursor: pointer; border: 3px solid transparent;
+            display: flex; flex-direction: column; min-height: 180px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: 0.2s;
         }
+        .room-card:hover { transform: translateY(-5px); }
         .room-number { font-size: 2.2rem; font-weight: 800; color: #2c3e50; }
         .room-status { margin: 5px 0; font-weight: 700; padding: 5px; border-radius: 6px; font-size: 0.7rem; text-transform: uppercase; }
-        .room-note { font-size: 0.75rem; color: #666; font-style: italic; flex-grow: 1; margin: 8px 0; border-top: 1px solid #f0f0f0; padding-top: 8px; }
-        .room-time { font-size: 0.65rem; color: #bbb; font-weight: bold; }
+        .room-note { font-size: 0.75rem; color: #666; font-style: italic; flex-grow: 1; border-top: 1px solid #f0f0f0; padding-top: 8px; margin-top: 5px; }
+        .room-time { font-size: 0.65rem; color: #bbb; font-weight: bold; margin-top: 5px; }
 
         /* Status Colors */
-        .status-kosong { border-color: var(--color-kosong); }
-        .status-kosong .room-status { background: var(--color-kosong); color: white; }
-        .status-terisi { border-color: var(--color-terisi); }
-        .status-terisi .room-status { background: var(--color-terisi); color: white; }
-        .status-ac { border-color: var(--color-ac-mati); }
-        .status-ac .room-status { background: var(--color-ac-mati); color: white; }
-        .status-kotor { border-color: var(--color-kotor); }
-        .status-kotor .room-status { background: var(--color-kotor); color: white; }
-        .status-maintenance { border-color: var(--color-maintenance); }
-        .status-maintenance .room-status { background: var(--color-maintenance); color: #333; }
+        .status-kosong { border-color: var(--color-kosong); } .status-kosong .room-status { background: var(--color-kosong); color: white; }
+        .status-terisi { border-color: var(--color-terisi); } .status-terisi .room-status { background: var(--color-terisi); color: white; }
+        .status-ac { border-color: var(--color-ac-mati); } .status-ac .room-status { background: var(--color-ac-mati); color: white; }
+        .status-kotor { border-color: var(--color-kotor); } .status-kotor .room-status { background: var(--color-kotor); color: white; }
+        .status-maintenance { border-color: var(--color-maintenance); } .status-maintenance .room-status { background: var(--color-maintenance); color: #333; }
 
         /* Modal */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; backdrop-filter: blur(3px); }
         .modal-content { background: white; padding: 25px; border-radius: 20px; width: 85%; max-width: 320px; text-align: center; }
-        textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; margin: 10px 0; }
+        textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; margin: 10px 0; font-family: inherit; }
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .status-btn { padding: 10px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 0.8rem; }
     </style>
@@ -86,35 +79,36 @@
 
 <div id="loginPage">
     <div class="login-card">
-        <h2 style="margin-top:0">Wisma Monitor</h2>
+        <h2 style="margin:0">Wisma Monitor</h2>
         <div id="roleSelection">
             <button class="login-btn btn-res" onclick="showPasswordInput()">Login Resepsionis</button>
             <button class="login-btn btn-kar" onclick="login('Karyawan 1')">Login Karyawan 1</button>
             <button class="login-btn btn-kar" onclick="login('Karyawan 2')">Login Karyawan 2</button>
         </div>
-        
         <div id="passContainer">
-            <p>Masukkan Password Resepsionis:</p>
-            <input type="password" id="passInput" placeholder="••••••">
+            <p>Password Resepsionis:</p>
+            <input type="password" id="passInput" placeholder="Masukkan sandi...">
             <button class="login-btn btn-res" onclick="checkPassword()">Masuk</button>
-            <button style="background:none; border:none; color:#888; cursor:pointer;" onclick="hidePasswordInput()">Kembali</button>
+            <button onclick="location.reload()" style="background:none; border:none; color:#888; cursor:pointer;">Kembali</button>
         </div>
     </div>
 </div>
 
 <div id="mainPage">
     <header>
-        <div class="header-left"><b>WISMA APP</b></div>
-        <div class="user-tag" id="userTagDisplay">User</div>
-        <button onclick="location.reload()" style="background:none; border:none; color:red; font-weight:bold; cursor:pointer;">Logout</button>
+        <div><b>WISMA APP</b> <span id="userDisplay" style="font-size: 0.7rem; opacity: 0.6;"></span></div>
+        <div class="header-actions">
+            <button id="reportBtn" class="report-btn" onclick="exportPDF()">Laporan (PDF)</button>
+            <button onclick="location.reload()" style="background:none; border:none; color:red; font-weight:bold; cursor:pointer;">Logout</button>
+        </div>
     </header>
     <div class="container" id="roomContainer"></div>
 </div>
 
 <div class="modal" id="statusModal">
     <div class="modal-content">
-        <h3 id="modalTitle" style="margin-top:0">Update Kamar</h3>
-        <textarea id="roomNoteInput" rows="2" placeholder="Catatan kamar..."></textarea>
+        <h3 id="modalTitle" style="margin:0">Update Kamar</h3>
+        <textarea id="roomNoteInput" placeholder="Tambahkan catatan khusus..."></textarea>
         <div class="btn-group">
             <button class="status-btn" style="background: var(--color-kosong)" onclick="tempStatus='Kosong'">Kosong</button>
             <button class="status-btn" style="background: var(--color-terisi)" onclick="tempStatus='Terisi'">Terisi</button>
@@ -140,55 +134,40 @@
 		measurementId: "G-VQ7BG2RBPT"
     };
 
-    // --- PENGATURAN PASSWORD ---
-    const ADMIN_PASSWORD = "877887"; // Ganti password Anda di sini
+   const ADMIN_PASSWORD = "877887";
 
-    firebase.initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const roomsRef = db.ref('rooms');
-
+    
     let currentUser = "";
     let currentRoomId = null;
     let tempStatus = "";
     let fullData = {};
 
-    // --- LOGIKA LOGIN ---
     function showPasswordInput() {
         document.getElementById('roleSelection').style.display = 'none';
         document.getElementById('passContainer').style.display = 'block';
     }
 
-    function hidePasswordInput() {
-        document.getElementById('roleSelection').style.display = 'block';
-        document.getElementById('passContainer').style.display = 'none';
-    }
-
     function checkPassword() {
-        const input = document.getElementById('passInput').value;
-        if (input === ADMIN_PASSWORD) {
-            login('Resepsionis');
-        } else {
-            alert("Password Salah!");
-        }
+        if (document.getElementById('passInput').value === ADMIN_PASSWORD) login('Resepsionis');
+        else alert("Password Salah!");
     }
 
     function login(role) {
         currentUser = role;
-        document.getElementById('userTagDisplay').innerText = role;
+        document.getElementById('userDisplay').innerText = `(${role})`;
         document.getElementById('loginPage').style.display = 'none';
         document.getElementById('mainPage').style.display = 'block';
+        if (role === 'Resepsionis') document.getElementById('reportBtn').style.display = 'block';
         startSync();
     }
 
-    // --- LOGIKA DATA ---
     function startSync() {
-        roomsRef.on('value', (snapshot) => {
+        db.ref('rooms').on('value', (snapshot) => {
             const data = snapshot.val();
             if (!data) initDefaultRooms();
-            else {
-                fullData = data;
-                render(data);
-            }
+            else { fullData = data; render(data); }
         });
     }
 
@@ -198,7 +177,7 @@
             let num = i.toString().padStart(2, '0');
             initial[num] = { number: num, status: 'Kosong', note: '', lastUpdate: '--:--' };
         }
-        roomsRef.set(initial);
+        db.ref('rooms').set(initial);
     }
 
     function render(data) {
@@ -220,11 +199,7 @@
     }
 
     function openModal(id) {
-        // Hanya Resepsionis yang bisa edit
-        if (currentUser !== 'Resepsionis') {
-            alert("Akses Terbatas: Hanya Resepsionis yang dapat merubah status.");
-            return;
-        }
+        if (currentUser !== 'Resepsionis') { alert("Akses Terbatas!"); return; }
         currentRoomId = id;
         tempStatus = fullData[id].status;
         document.getElementById('modalTitle').innerText = `Kamar ${id}`;
@@ -233,20 +208,91 @@
     }
 
     function saveChanges() {
-        const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const note = document.getElementById('roomNoteInput').value;
+
         db.ref('rooms/' + currentRoomId).update({
             status: tempStatus,
-            note: document.getElementById('roomNoteInput').value,
-            lastUpdate: timeNow
+            note: note,
+            lastUpdate: timeStr
         });
+
+        // Simpan log sejarah untuk ekspor PDF
+        db.ref('logs').push({
+            room: currentRoomId,
+            status: tempStatus,
+            note: note,
+            time: timeStr,
+            fullDate: dateStr,
+            timestamp: now.getTime(),
+            user: currentUser
+        });
+
         closeModal();
+    }
+
+    async function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const now = new Date();
+        const dateNow = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        doc.setFontSize(16);
+        doc.text("LAPORAN STATUS KAMAR WISMA", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Dicetak pada: ${dateNow}`, 14, 28);
+
+        const snapshot = await db.ref('logs').once('value');
+        const logsData = snapshot.val();
+        if (!logsData) { alert("Data laporan masih kosong."); return; }
+
+        const allLogs = Object.values(logsData);
+        const pagiLogs = [];
+        const malamLogs = [];
+
+        allLogs.forEach(log => {
+            const hour = parseInt(log.time.split('.')[0]);
+            const row = [log.room, log.time, log.status, log.note || '-', log.user];
+            // Klasifikasi Shift
+            if (hour >= 7 && hour < 18) pagiLogs.push(row);
+            else malamLogs.push(row);
+        });
+
+        // Pengurutan (Nomor Kamar dulu, lalu Waktu)
+        const sortReport = (a, b) => {
+            if (a[0] !== b[0]) return parseInt(a[0]) - parseInt(b[0]);
+            return a[1].localeCompare(b[1]);
+        };
+        pagiLogs.sort(sortReport);
+        malamLogs.sort(sortReport);
+
+        doc.text("1. SHIFT PAGI (07:00 - 18:00 WIB)", 14, 40);
+        doc.autoTable({
+            startY: 42,
+            head: [['Kamar', 'Jam', 'Status', 'Catatan', 'Oleh']],
+            body: pagiLogs,
+            theme: 'striped',
+            headStyles: { fillColor: [44, 62, 80] }
+        });
+
+        doc.text("2. SHIFT MALAM (18:00 - 07:00 WIB)", 14, doc.lastAutoTable.finalY + 15);
+        doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 17,
+            head: [['Kamar', 'Jam', 'Status', 'Catatan', 'Oleh']],
+            body: malamLogs,
+            theme: 'striped',
+            headStyles: { fillColor: [44, 62, 80] }
+        });
+
+        doc.save(`Laporan_Wisma_${now.toLocaleDateString('id-ID')}.pdf`);
     }
 
     function getStatusClass(s) {
         const map = { 'Kosong': 'status-kosong', 'Terisi': 'status-terisi', 'AC belum mati': 'status-ac', 'Kotor': 'status-kotor', 'Maintenance': 'status-maintenance' };
         return map[s] || '';
     }
-
     function closeModal() { document.getElementById('statusModal').style.display = 'none'; }
 </script>
 </body>
